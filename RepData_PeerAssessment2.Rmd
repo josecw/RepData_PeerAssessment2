@@ -1,0 +1,195 @@
+---
+title: "The most horrable disaster in US"
+author: "_Lee Chun Wai_"
+date: "22 June, 2014"
+output: html_document
+---
+
+
+# Synopsis
+In this report we aim to describe the type of weather events that are 1) most harmful with respect to population health in the United States and 2) most costly to the United States with respect to economic consequences. Using storm data from the U.S. National Oceanic and Atmospheric Administration (NOAA), we measured population health by the number of fatalities and injuries caused and economic consequences by the dollar amount damage done to property and crops. As observed from 1950-2011, we determined the following:
+
+* __Tornadoes__ were most harmful to population health, causing about 97,000 counts of fatalities and injuries.
+* __Floods__ were most harmful to the economy, causing over 150 billion dollars in damage to property and crops.
+
+# Data Processing
+### Download Data
+```{r, cache=TRUE}
+dir.create("data", showWarnings = FALSE)
+
+if (!file.exists("data/storm_data.csv.bz2")){
+        url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+        download.file(url, "data/storm_data.csv.bz2", method = "curl")
+}
+```
+### Load data into R
+```{r,cache=TRUE}
+storm <- read.csv(bzfile("data/storm_data.csv.bz2"),sep=",", header = TRUE)
+```
+
+Take a brief look on the data set using dim() and namaes()
+```{r}
+dim(storm)
+
+names(storm)
+```
+
+From the data set, we have 902297 observations and 37 columns. We only interested on a few columns below:  
+* __EVTYPE__            : Type of the weather. _E.g. Tornado, Flood, Draught, Storm_  
+* __INJURIES__          : Consist of direct/indirect injuries.  
+* __FATALITIES__        : Consist of direct/indirect fatalities.  
+* __PROPDMG__           : Property damage.  
+* __PROPDMGEXP__        : Exponent value for property damage. _E.g. K represent Thousand, 5 represent 10^5, etc._  
+* __CROPDMG__           : Crops/Agricultural product damage.  
+* __CROPDMGEXP__        : Exponent value for crop damage. _E.g. K represent Thousand, 5 represent 10^5, etc._  
+
+
+### Cleaning __EVTYPE__ variable
+We are interested in the ```EVTYPE``` variable which gives us the weather event responsible for the damage. The code below create a subset of the __Storm__ data, and perform minor cleaning for the values in ```EVTYPE``` variable.  
+```{r Subsetting, warning=FALSE}
+subStorm = subset(storm,select = c("EVTYPE","INJURIES","FATALITIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP"))
+subStorm$EVTYPE = toupper(subStorm$EVTYPE)
+subStorm$PROPDMGEXP = toupper(subStorm$PROPDMGEXP)
+subStorm$CROPDMGEXP = toupper(subStorm$CROPDMGEXP)
+subStorm$CHECKSUM = subStorm$INJURIES + subStorm$FATALITIES + subStorm$PROPDMG + subStorm$CROPDMG
+subStorm = subset(subStorm,CHECKSUM>0 )
+
+subStorm[grep("RIP CURRENTS",subStorm$EVTYPE),]$EVTYPE <- "RIP CURRENT";
+
+subStorm[grep("TORNADO",subStorm$EVTYPE),]$EVTYPE <- "TORNADO";
+subStorm[grep("TORNDAO",subStorm$EVTYPE),]$EVTYPE <- "TORNADO";
+
+subStorm[subStorm$EVTYPE=="FLOOD & HEAVY RAIN",]$EVTYPE <- "FLOOD";
+subStorm[subStorm$EVTYPE=="FLOODING",]$EVTYPE <- "FLOOD";
+subStorm[subStorm$EVTYPE=="FLOOD/RAIN/WINDS",]$EVTYPE <- "FLOOD";
+subStorm[subStorm$EVTYPE=="FLOODS",]$EVTYPE <- "FLOOD";
+subStorm[subStorm$EVTYPE=="FLOOD/RIVER FLOOD",]$EVTYPE <- "FLOOD";
+subStorm[subStorm$EVTYPE=="FLOODING/HEAVY RAIN",]$EVTYPE <- "FLOOD";
+
+subStorm[grep("FLASH FLOOD",subStorm$EVTYPE),]$EVTYPE <- "FLASH FLOOD";
+subStorm[subStorm$EVTYPE=="FLOOD FLASH",]$EVTYPE <- "FLASH FLOOD";
+subStorm[subStorm$EVTYPE=="FLOOD/FLASH",]$EVTYPE <- "FLASH FLOOD";
+subStorm[subStorm$EVTYPE=="FLOOD/FLASH/FLOOD",]$EVTYPE <- "FLASH FLOOD";
+subStorm[subStorm$EVTYPE=="FLOOD/FLASHFLOOD",]$EVTYPE <- "FLASH FLOOD";
+subStorm[subStorm$EVTYPE=="RIVER FLOOD",]$EVTYPE <- "FLASH FLOOD";
+
+subStorm[subStorm$EVTYPE=="HEAT WAVE",]$EVTYPE <- "HEAT";
+subStorm[subStorm$EVTYPE=="HEAT WAVES",]$EVTYPE <- "HEAT";
+subStorm[subStorm$EVTYPE=="HEAT WAVE DROUGHT",]$EVTYPE <- "HEAT";
+
+subStorm[grep("HURRICANE",subStorm$EVTYPE),]$EVTYPE <- "HURRICANE/TYPHOON";
+subStorm[grep("TYPHOON",subStorm$EVTYPE),]$EVTYPE <- "HURRICANE/TYPHOON";
+
+subStorm[grep("LIGHTNING",subStorm$EVTYPE),]$EVTYPE <- "LIGHTNING";
+subStorm[subStorm$EVTYPE=="LIGNTNING",]$EVTYPE  <- "LIGHTNING";
+subStorm[subStorm$EVTYPE=="LIGHTING",]$EVTYPE  <- "LIGHTNING";
+
+subStorm[grep("THUNDERSTORM",subStorm$EVTYPE),]$EVTYPE <- "THUNDERSTORM WIND";
+subStorm[grep("TSTM WIND",subStorm$EVTYPE),]$EVTYPE <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="THUDERSTORM WINDS",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="THUNERSTORM WINDS",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="THUNDERTORM WINDS",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="THUNDERESTORM WINDS",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="THUNDERSTROM WIND",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="THUNDEERSTORM WINDS",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="TSTMW",]$EVTYPE  <- "THUNDERSTORM WIND";
+subStorm[subStorm$EVTYPE=="TUNDERSTORM WIND",]$EVTYPE  <- "THUNDERSTORM WIND";
+
+rm(storm)
+```
+
+### Standardizing PROPDMGEXP and CROPDMGEXP variables 
+
+By using the ```table()``` function, we found many different values in these variables. We will transform the values as below:  
+* __H__ : Hundred, or 10^2  
+* __K__ : Thousand, or 10^3  
+* __M__ : Million, or 10^6  
+* __B__ : Billion, or 10^9  
+* __+__ : Undefined, default to thousand, or 10^3  
+* __-__ : Undefined, default to thousand, or 10^3  
+* __0__ : Invalid value, default to thousand, or 10^3  
+* __?__ : Invalid value, default to thousand, or 10^3  
+Other numeric values are remaining as the Exponent factor.
+
+_We are tranforming the undefined or invalid value by assuming the losses from the impact of natural disasters are not less than a thousand._
+
+``` {r Transform Exponent}
+subStorm[subStorm$PROPDMGEXP=="H",]$PROPDMGEXP  <- "2";
+subStorm[subStorm$PROPDMGEXP=="K",]$PROPDMGEXP  <- "3";
+subStorm[subStorm$PROPDMGEXP=="M",]$PROPDMGEXP  <- "6";
+subStorm[subStorm$PROPDMGEXP=="B",]$PROPDMGEXP  <- "9";
+subStorm[subStorm$PROPDMGEXP=="+",]$PROPDMGEXP  <- "3";
+subStorm[subStorm$PROPDMGEXP=="-",]$PROPDMGEXP  <- "3";
+subStorm[subStorm$PROPDMGEXP=="0",]$PROPDMGEXP  <- "3";
+subStorm[subStorm$PROPDMGEXP=="",]$PROPDMGEXP  <- "3";
+subStorm$PROPDMGEXP = as.numeric(subStorm$PROPDMGEXP)
+
+subStorm[subStorm$CROPDMGEXP=="K",]$CROPDMGEXP  <- "3";
+subStorm[subStorm$CROPDMGEXP=="M",]$CROPDMGEXP  <- "6";
+subStorm[subStorm$CROPDMGEXP=="B",]$CROPDMGEXP  <- "9";
+subStorm[subStorm$CROPDMGEXP=="0",]$CROPDMGEXP  <- "3";
+subStorm[subStorm$CROPDMGEXP=="?",]$CROPDMGEXP  <- "3";
+subStorm[subStorm$CROPDMGEXP=="",]$CROPDMGEXP  <- "3";
+subStorm$CROPDMGEXP = as.numeric(subStorm$CROPDMGEXP)
+
+```
+
+### Calculate the total impact on population Health
+To assess harm to population health, we will be using the ```FATALITIES``` and ```INJURIES``` variables.  
+Missing values are dropped from the analysis by default.  
+``` {r Calculate Health Impact}
+library(reshape2)
+popImpacts <- aggregate(cbind(FATALITIES,INJURIES) ~ EVTYPE, data = subStorm, sum)
+topInjury = head(popImpacts[order(popImpacts$INJURIES,decreasing=TRUE),],8)
+topFatal= head(popImpacts[order(popImpacts$FATALITIES,decreasing=TRUE),],8)
+casualties = rbind(topInjury,topFatal)
+casualties = unique(casualties)
+m.casualties = melt(casualties, id.vars="EVTYPE", value.name="incident",variable.name = "type",)
+```
+
+Now that we have variables to represent economic consequences with the appropriate magnitude we can apply a similar approach as we did with population health to aggregate the cost data by EVTYPE. 
+
+### Calculate the total impact on economy
+``` {r Calculate Economy Impact}
+library(reshape2)
+econImpacts <- aggregate(cbind((CROPDMG*10^CROPDMGEXP),(PROPDMG*10^PROPDMGEXP)) ~ EVTYPE, data = subStorm, sum)
+names(econImpacts) = c("EVTYPE","CROPDAMAGE","PROPDAMAGE")
+topProp = head(econImpacts[order(econImpacts$PROPDAMAGE,decreasing=TRUE),],8)
+topCrop= head(econImpacts[order(econImpacts$CROPDAMAGE,decreasing=TRUE),],8)
+losses = rbind(topProp,topCrop)
+losses = unique(losses)
+m.losses = melt(losses, id.vars="EVTYPE", value.name="Figures",variable.name = "type",)
+
+```
+  
+# Results
+  
+### Impact to Population Health
+```{r Population Health Result,fig.width=12}
+library(ggplot2)
+ggplot(m.casualties, aes(x=reorder(EVTYPE,incident), y=incident, fill=type)) + 
+        geom_bar( stat="identity") + 
+        coord_flip() + 
+        ggtitle("U.S. Casualties by Top 8 Weather Event ") + 
+        xlab("Weather Event") + 
+        ylab("Total Casualties") + 
+        theme_bw(base_size = 10, base_family = "Helvetica") + 
+        scale_fill_brewer(palette="Set2")
+```
+
+From 1950-2011 in the United States, ```tornadoes``` by far cause the most harm to population health with respect to fatalities and injuries caused at `r round(casualties[1,2] + casualties[1,3],0)` people.  
+
+### Impact to Economy    
+
+```{r Economy Result,fig.width=12}
+ggplot(m.losses, aes(x=reorder(EVTYPE,Figures), y=Figures/10^6, fill=type)) + 
+        geom_bar( stat="identity") + 
+        coord_flip() + 
+        ggtitle("Crop & Property Damage by Top 8 Weather Event Types") + 
+        xlab("Weather Event") + 
+        ylab("Total Loss (in Millions US Dollars)") + 
+        theme_bw(base_size = 10, base_family = "Helvetica") + 
+        scale_fill_brewer(palette="Set1")
+```
+
+From 1950-2011 in the United States, ```floods``` cause the most economic damage with respect to damage to property and crops at $`r (topProp[1,2] + topProp[1,3])/10^9` billion dollar.  
